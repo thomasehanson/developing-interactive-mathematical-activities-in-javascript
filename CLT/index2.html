@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+       <meta charset="UTF-8" />
+       <title>Central Limit theorem</title>
+       <script type="text/javascript" charset="UTF-8" src="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraphcore.js"></script>
+       <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraph.css" />
+       <script src='https://cdn.plot.ly/plotly-2.6.3.min.js'></script>
+
+   </head>
+   
+   <body style="font-family: Arial, Helvetica, sans-serif;">
+    <header style="text-align: center;">
+        <h1>Central Limit Theorem</h1>
+    </header>
+
+    <main style="text-align: center;">
+        <div>
+            <div>
+                <button type="button" onclick="uniSelector()">Uniform</button>
+                <button type="button" onclick="normSelector()">Normal</button>
+                <button type="button" onclick="expSelector()">Exponential</button>
+            </div>
+
+            <div>
+                <h3>Currently Selected:</h3>
+                <h2 id="dist"></h2>
+            </div>
+                <div id="params">
+                </div>
+            <br>
+        </div>
+
+        <div style="display: flex; text-align: center; justify-content: center;">
+            <h2 style="width:500px; margin:10px;">PDF and Sample Points</h2>
+            <h2 style="width:500px; margin:10px;">Histogram of Mean Values</h2>
+        </div>
+
+        <div style="display: flex; text-align: center; justify-content: center;">
+            <span>
+                <div id="box1" class="jxgbox" style="width:500px; height:250px; margin:10px; border-color: black;"></div>
+                <form>
+                    <span>
+                        <input type="range" value="50" min="2" max="500" id = "sslide"
+                        style="margin-left: 15px;"
+                        oninput="document.getElementById('sPoints').innerHTML = this.value"
+                        onChange="plotter()"/>
+                        <label id="sPoints" style="display: inline-block; width: 35px;">50</label> <label style="display: inline-block; padding-right: 55px;">points per sample</label>
+                    </span>
+                    <button type="button" onclick="sampler(1);">Generate 1 Sample</button>
+                    <br>
+                    <br>
+                    <span>
+                        <input type="range" value="10" min="2" max="2500" id = "n"
+                        oninput="document.getElementById('genn').innerHTML = this.value"/>
+                        <label id="genn" style="display: inline-block; width: 35px;">10</label> <label style="display: inline-block; padding-right: 5px;">samples per experiment</label>
+                        <button type="button" onclick="sampler(document.getElementById('n').value);">
+                        Run 1 Experiment</button>
+                    </span>
+                    <br>
+                    <br>
+                    <span>
+                        <label id="sampleCount">0</label> <label style="display: inline-block; padding-right: 15px;">sample(s) taken</label> 
+                        <button type="button" onclick="plotter()">Reset</button>
+                    </span>
+                </form>
+            </span>
+            <div id="box2" class="jxgbox" style="width:500px; height:500px; margin:10px; border-color: black;"></div>
+        </div>
+
+
+        <!-- JAVASCRIPT BEGINS -->
+
+        <script>
+            var points;
+            var pt;
+            var mean;
+            var sd;
+            var a;
+            var b;
+            var points = [];
+            var gps = [];
+
+            function clearBoard(){
+                try{
+                    board.removeObject(gps)
+                }
+                finally{
+                    Plotly.newPlot("box2", []);
+                    window.plot.remove();
+                    means = []
+                    document.getElementById("sampleCount").innerHTML = 0;
+                }
+            } 
+
+            // Normal Functions
+
+            // Box Muller transform
+            function stdNorm(m, s) {
+                var u = 0
+                var v = 0;
+                while(u == 0){ // While loop ensures (0,1) not [0,1)
+                    u = Math.random();
+                }
+                while(v == 0){
+                    v = Math.random();
+                }
+                // Transform to make Z0
+                var val = (Math.sqrt( -2 * Math.log( u ) ) * Math.cos( 2 * Math.PI * v ));
+                // Return value, scaled by mean and sd
+                return (s*val) + m;
+            }
+
+            function phi(x, m, s){
+                var o2pi = 1/(Math.sqrt(2*Math.PI)*s); // Calculates 1/sqrt(2*pi)
+                var ez = Math.exp(-(Math.pow((x - m)/s, 2))/2); // Calculates e^(-(z^2)/2)
+                return ((o2pi * ez));  // Multiply them together to caclulate pdf
+            }
+
+            // Uniform Functions
+
+            function unigen(a,b){
+                v = a + (Math.random()*(b-a));
+                return v
+            }
+
+            function uni(x,a,b){
+                if(x>b || x<a){
+                    return 0
+                } 
+                return 1/(b-a);
+            }
+
+            //Exponential Functions
+
+            function expGen(lam) {
+                //Metropolis-Hastings
+                var x = 1;
+                var y = 1;
+                var alpha = 0;
+                var p=0;
+                for (var i = 0; i < 100; i++) {
+                    y = stdNorm(x, 1/lam)
+                    alpha = Math.min(1, (exp(y, lam))/(exp(x, lam)))
+                    p = Math.random();
+                    if(p<alpha){
+                        x = y;
+                    }
+                }
+                return x;
+            }
+
+            function exp(x, lam){
+                if(x>0){
+                    return lam*Math.exp(-lam*x);
+                }else{
+                    return 0;
+                }
+            }
+
+
+            // Draws appropriate graph
+
+            function plotter(){
+                clearBoard()
+                distribution =  document.getElementById("dist").innerHTML.toLowerCase()
+                
+                switch(distribution){
+                    case "normal":
+                        mean = parseFloat(document.getElementById("mean").value);
+                        sd = parseFloat(document.getElementById("sd").value);
+                        window.plot = board.create("functiongraph", [function(x){return phi(x, mean, sd);}]);
+                        break;
+                    case "uniform":
+                        a = parseFloat(document.getElementById("a").value);
+                        b = parseFloat(document.getElementById("b").value);
+                        window.plot = board.create("functiongraph", [function(x){return uni(x,a,b);}]);
+                        break;
+                    case "exponential":
+                        lam = parseFloat(document.getElementById("lam").value);
+                        window.plot = board.create("functiongraph", [function(x){return exp(x,lam);}]);
+                        break;
+                }
+            }
+
+            function sampler(runs){
+                distribution =  document.getElementById("dist").innerHTML.toLowerCase()
+                size=document.getElementById("sslide").value;
+                try{
+                    board.removeObject(gps)
+                }finally{}7
+
+                for (var index = 0; index < runs; index++) {
+                        total = 0;
+                            for (var i = 0; i < size; i++) {
+                                switch(distribution){
+                                    case "normal":
+                                        mean = parseFloat(document.getElementById("mean").value);
+                                        sd = parseFloat(document.getElementById("sd").value);
+                                        pt = stdNorm(mean, sd);
+                                        break;
+                                    case "uniform":
+                                        a = parseFloat(document.getElementById("a").value);
+                                        b = parseFloat(document.getElementById("b").value);
+                                        if(a>b){
+                                            alert("Cannot generate sample with a>b")
+                                            index = runs;
+                                            i = size;
+                                            break;
+                                        }
+                                        pt = unigen(a,b);
+                                        break;
+                                    case "exponential":
+                                        lam = parseFloat(document.getElementById("lam").value);
+                                        if(lam<=0){
+                                            alert("Cannot generate sample with rate less than or equal to 0")
+                                            index = runs;
+                                            i = size;
+                                            break;
+                                        }
+                                        pt = expGen(lam);
+                                        break;
+                                }
+                                total = total + pt;
+                                if (index===(runs-1)){
+                                    apoint = board.create("point" , [pt, 0]).setLabelText("");
+                                    gps.push(apoint);
+                                }
+                            }
+
+                            sampleVal = parseFloat(document.getElementById("sampleCount").innerHTML)
+                            document.getElementById("sampleCount").innerHTML = sampleVal + 1
+
+                            smean = (total/size);
+                            means.push(smean);
+                    }
+
+                trace = {
+                    x: means,
+                    type: 'histogram',
+                };
+                data = [trace];
+                Plotly.newPlot("box2", data);
+            }
+
+            // Selector functions
+
+            function normSelector(){
+                board.removeObjects
+                means=[]
+                Plotly.newPlot("box2", []);
+                Plotly.removeObject
+                document.getElementById("params").innerHTML = "";
+                document.getElementById("dist").innerHTML = "Normal";
+
+                var meanLab = document.createElement("TEXT");
+                meanLab.innerHTML = "Mean: "
+                document.getElementById("params").appendChild(meanLab);
+                var meanIn = document.createElement("INPUT");
+                meanIn.addEventListener("input", function(){plotter()}, false)
+                meanIn.id = "mean"
+                meanIn.value = 0
+                meanIn.style = "text-align: center; width: 35px;"
+                document.getElementById("params").appendChild(meanIn);
+
+                var sdLab = document.createElement("TEXT");
+                sdLab.innerHTML = " Standard Deviation: "
+                document.getElementById("params").appendChild(sdLab);
+                var sdIn = document.createElement("INPUT");
+                sdIn.id = "sd"
+                sdIn.value = 1
+                sdIn.style = "text-align: center; width: 35px;"
+                sdIn.addEventListener("input", function(){plotter()}, false)
+                document.getElementById("params").appendChild(sdIn);
+                plotter();
+            }
+
+            function uniSelector(){
+                document.getElementById("params").innerHTML = "";
+                document.getElementById("dist").innerHTML = "Uniform";
+
+                var aLab = document.createElement("TEXT");
+                aLab.innerHTML = "a: "
+                document.getElementById("params").appendChild(aLab);
+                var aIn = document.createElement("INPUT");
+                aIn.value = -1;
+                aIn.id="a"
+                aIn.style = "text-align: center; width: 35px;"
+                aIn.addEventListener("input", function(){plotter()}, false)
+                document.getElementById("params").appendChild(aIn);
+
+                var bLab = document.createElement("TEXT");
+                bLab.innerHTML = " b: "
+                document.getElementById("params").appendChild(bLab);
+                var bIn = document.createElement("INPUT");
+                bIn.value = 1;
+                bIn.id="b"
+                bIn.style = "text-align: center; width: 35px;"
+                bIn.addEventListener("input", function(){plotter()}, false)
+                document.getElementById("params").appendChild(bIn);
+                plotter();
+            }
+
+            function expSelector(){
+                document.getElementById("params").innerHTML = "";
+                document.getElementById("dist").innerHTML = "Exponential";
+
+                var lamLab = document.createElement("TEXT");
+                lamLab.innerHTML = "Rate (lambda): "
+                document.getElementById("params").appendChild(lamLab);
+                var lamIn = document.createElement("INPUT");
+                lamIn.value = 1;
+                lamIn.id="lam"
+                lamIn.style = "text-align: center; width: 35px;"
+                lamIn.addEventListener("input", function(){plotter()}, false)
+                document.getElementById("params").appendChild(lamIn);
+                plotter();
+            }
+
+            var board = JXG.JSXGraph.initBoard("box1", { 
+                boundingbox: [-5, 1, 5, -0.2], axis:true
+            });
+
+            var plot = board.create("functiongraph", [function(x){return phi(x);}]);
+
+            normSelector()
+
+            </script>
+        </main>
+    </body>
+</html>

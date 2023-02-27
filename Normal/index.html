@@ -1,0 +1,377 @@
+ <!DOCTYPE html>
+ <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Normal Distribution</title>
+        <link rel="stylesheet" type="text/css" href="index.css"/>
+    </head>
+    <body>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.5.1/dist/chart.min.js"></script>
+        <main>
+            <h1>Normal Distribution</h1>
+            <div id=chartSettings>
+                <h3>Chart settings:</h3>
+
+                <form id="opt">
+                    <div id="inputs" style="text-align: center">
+                        <span class="sett">
+                            Mean:
+                            <input oninput="calcProb(getElementById('val').value),createGraph()" type="text" name="mean" value="0" >
+                        </span>
+                        <span class="sett">
+                            Standard Deviation: 
+                            <input oninput="calcProb(getElementById('val').value),createGraph()" type="text" name="sd" value="1">
+                        </span>  
+                        <br><br>
+
+                        <span class="sett">
+                            <span id="probability">
+                                P( X
+                                <select onchange="calcProb(getElementById('val').value)" id="type">
+                                    <option value="1">&leq;</option>
+                                    <option value="2">&geq;</option>
+                                </select>
+                                <input oninput="calcProb(getElementById('val').value)" id = "val" type="text" name="tail" value="0"/>
+                                ) = <input onchange="calcVal(getElementById('prob').value)" id = "prob" type="text" name="value" value="0.5"/>
+                            </span>
+                        </span>
+
+                        Show probability on graph:
+                        <span onchange="calcProb(getElementById('val').value)" class="sett">
+                            <input class = "radio" type="radio" id="show" name="sig" value="show">
+                            <label for="show">Show</label>
+                            <input class = "radio" type="radio" id="hide" name="sig" value="hide" checked="checked">
+                            <label for="hide">Hide</label>
+                        </span>
+                    </div>
+                    
+                    <div id="buttons" style="text-align: right">
+                        <button type="button" onclick="window.location.reload()">Reset Graph</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="canvas">
+                <canvas id="myChart" height="100%"></canvas>
+            </div>
+
+            <div id="expl">
+                <h3>About</h3>
+                <p>This tool is designed to help visualise and explain how changes to parameters affect the
+                    probability density function (pdf) of a normal distribution.</p>
+
+                <p>The mean and standard deviation of the distribution can be changed in the <b>Chart Settings</b>
+                    section at the top of the page.</p>
+                    
+                <p>Below this is a tool which calculates the probability of X being in a given region.
+                    For example (with Mean = 0 and Standard Deviation = 1) the tool will calculate P(X &leq; 0.1) = 0.5398.
+                    This means that the probability of X taking a value less than or equal 0.1 is 0.5398.</p>
+
+                <p>Finally by ticking "Show" or "Hide" you can choose whether or not to annotate the graph with the critical value.</p>
+
+                <br>
+
+                <p>Once you understand how the graph changes, try answering the questions below!</p>
+
+                <br>
+                <h3>Exercises</h3>
+                <p>1) How does increasing the mean change the pdf?</p>
+                <p id="answer1" class="answer">&nbsp;</p>
+                <p>2) How does increasing the standard deviation change the pdf?</p>
+                <p id="answer2" class="answer">&nbsp;</p>
+                <p><i>Hint: X~N(a, b<sup>2</sup>) means X comes from a normal distribution with mean a and standard
+                    deviation b</i></p>
+                <p>3) A statistician wants to find a number, z, such that when X~N(1.3, 2.1<sup>2</sup>) the
+                    probability that X &leq; z is 0.05. What is z?
+                </p>
+                <p id="answer3" class="answer">&nbsp;</p>
+                <p><i>P(a &leq; X &leq; b) = P(X &leq; b) - P(X &leq; a)</i></p>
+                <p>4) Let X~N(0, 1). What is P(1 &leq; X &leq; 2)?
+                </p>
+                <p id="answer4" class="answer">&nbsp;</p>
+
+                <div id="buttons" style="text-align: right">
+                    <button type="button" onclick="showAnswers()">Show Answers</button>
+                </div>
+            </div>
+
+            <script>
+                Chart.defaults.color = "#000"; // Set chart text to black
+
+                function phi(z, mean, sd){
+                    var o2pi = 1/(Math.sqrt(2*Math.PI)*sd); // Calculates 1/sqrt(2*pi)
+                    var ez = Math.pow(Math.E,(-(Math.pow((z - mean)/sd, 2))/2)); // Calculates e^(-(z^2)/2)
+                    return ((o2pi * ez));  // Multiply them together to caclulate pdf
+                }
+
+                function createGraph(){
+                    const form = document.getElementById("opt");
+                    var mean = parseFloat(form.elements["mean"].value);
+                    var sd = parseFloat(form.elements["sd"].value);
+                    var hide = document.getElementById("hide").checked;
+                    var val = parseFloat(document.getElementById("val").value);
+                    var type = form.elements["type"].value;
+                
+                    var data1 = [];
+                    var data2 = [];
+                    var labels1 = [];
+                    var bound = 5000;
+
+                    // Form validation
+                    if (sd < 0){
+                        alert("Standard deviation must be greater than 0");
+                        form.elements["sd"].value = "1";
+                        sd = 1;
+                    }
+
+                    if (Math.abs(mean) > 5){
+                        alert("Mean must be between 5 and -5");
+                        form.elements["mean"].value = "0";
+                        mean = 0;
+                    }
+
+                    var theData = []
+
+                    if (hide==true){
+                        for (var i = -bound; i <= bound; i+=100) {
+                            var t = i/1000;
+                            data1[i+bound] = phi(t, mean, sd);
+                            labels1[i+bound] = t;
+                        }
+
+                        theData = [{
+                        type: "line",
+                            label: "f(x)",
+                            data: data1,
+                            pointRadius: 2.5,
+                            fill: false,
+                            borderColor: "rgb(25,26,79)",
+                            backgroundColor: "rgb(240,248,255)",
+                            tension: 0.4,
+                            spanGaps: true,
+                            borderWidth: 1
+                        }]
+                        console.log((data1))
+                    }
+                    
+                    if (hide == false){
+                        if(type=="1"){
+                            for (var i = -bound; i <= val*1000; i+=50) {
+                                var t = i/1000;
+                                data2[i+bound] = phi(t, mean, sd);
+                                labels1[i+bound] = t;
+                            }  
+                        }else{
+                            for (var i = val*1000; i <= bound; i+=50) {
+                                var t = i/1000;
+                                data2[i+bound] = phi(t, mean, sd);
+                                labels1[i+bound] = t;
+                            }
+                        }
+
+
+
+                        for (var i = -bound; i <= bound; i+=50) {
+                            var t = i/1000;
+                            data1[i+bound] = phi(t, mean, sd);
+                            labels1[i+bound] = t;
+                        }  
+
+                        theData = [{
+                        type: "line",
+                            label: "f(x)",
+                            data: data1,
+                            pointRadius: 0,
+                            fill: false,
+                            borderColor: "rgb(25,26,79)",
+                            backgroundColor: "rgb(240,248,255)",
+                            tension: 0.4,
+                            spanGaps: true,
+                            borderWidth: 1
+                        },{
+                        // Data for critical region
+                        type: "line",
+                            label: "Critical Region",
+                            data: data2,
+                            pointRadius: 0,
+                            fill: true,
+                            borderColor: "rgb(25,26,79, 0)",
+                            backgroundColor: "rgb(240,128,128)",
+                            tension: 0.4,
+                            spanGaps: true,
+                            borderWidth: 1
+                        }]
+
+                    }
+
+
+                    // This bit from https://stackoverflow.com/questions/24815851/how-to-clear-a-chart-from-a-canvas-so-that-hover-events-cannot-be-triggered
+                    // https://www.chartjs.org/docs/latest/developers/api.html#:%7E:text=Static%3A%20getChart(key)
+                    var chartStatus = Chart.getChart("myChart");
+                    if (chartStatus != undefined) {
+                        chartStatus.destroy(); // Destroy old graph
+                    }
+                    var ctx = document.getElementById("myChart").getContext("2d");
+
+                    var myChart = new Chart(ctx, {
+                    data: {
+                        labels: labels1,
+                        datasets: theData
+                    },
+                    options: {
+                        scales: {
+
+                            x: {
+                                type: "linear",
+                            },
+
+                            y: {
+                                type: "linear",
+                                beginAtZero: true,
+                            },
+                        },
+
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    font: {
+                                        size: 18,
+                                        family: "Arial, Helvetica, sans-serif"
+                                    }
+                                }
+                            },
+                        }
+                    }
+                })
+            }
+
+            // calcProb calculates the probability that X <= x for a given x
+            function calcVal(c){
+                if((c>1 || c<0)){
+                    window.alert("Quantile must be between 0 and 1");
+                    document.getElementById("val").value = "";
+                    document.getElementById("prob").value = "";
+                    return 0;
+                }
+
+                if(!Number.isInteger(c*10000)){
+                    window.alert("Please input a maximum of 4 decimal places");
+                    document.getElementById("prob").value = Math.floor(c*10000)/10000;
+                    return 0;
+                }
+
+                // Special cases if probability is 1 or 0
+                else if((c==1)){
+                    document.getElementById("val").value = "inf"
+                    return 0 // Stops the function prematurely
+                }else if((c==0)){
+                    document.getElementById("val").value = "-inf"
+                    return 0
+                }
+            // Extract parameters from inputs
+                const form = document.getElementById("opt");
+                var mean = parseFloat(form.elements["mean"].value);
+                var sd = parseFloat(form.elements["sd"].value);
+                var type = form.elements["type"].value;           
+            // Replace alpha (c) with 1-alpha if greater than sign selected
+                if(type == "2"){
+                    c = 1 - c
+                }
+            // We start with the knowledge that P(X<=0)=0.5 for a standard normal distribution
+                var x = 0;
+                var p = 0.5;
+                var y = 4*((c-0.5)/Math.abs(c-0.5));
+                if(y<0){
+                    var temp = x;
+                    x = y;
+                    y = temp;
+                }
+                var last = 0;
+                var z = 0;
+                var cycles = 0;
+                while (Math.round((p*10000)-(c*10000))!=0){ // ie while p and c are not equal when rounded to 4dp
+                    z = (x+y)/2
+            // Estimate P(X<=z)
+                    if (z > last){
+                        p = p + integ(x,z)
+                    }else{
+                        p = p - integ(z,y)
+                    }
+            // Bisection method
+                    if (p > c){
+                        y = z;
+                        last = y;
+                    }else{
+                        x = z;
+                        last = x;
+                    }
+                }
+                // Return scaled value
+                z = (sd*z) + mean;
+                document.getElementById("val").value = Math.round(z * 1000) / 1000; // Round to 4dp
+                createGraph()
+            }
+
+            // calcVal calculates the critical value x such that P(X <= x) = c for a given c
+            function calcProb(x){
+
+                const form = document.getElementById("opt");
+                var mean = parseFloat(form.elements["mean"].value);
+                var sd = parseFloat(form.elements["sd"].value);
+                var type = form.elements["type"].value;
+
+                x = (x - mean)/sd;
+                // We start with the knowledge that P(X<=0)=0.5 for a standard normal distribution
+                var p = 0.5;
+
+                if (x>=0){
+                    p = p + integ(0, x);
+                }
+
+                else{
+                    p = p - integ(x, 0);
+                }
+
+                if (p>1){
+                    p=1;
+                }
+                
+                if(type == "2"){
+                    p = 1 - p;
+                }
+
+                p = Math.round( p * 10000 ) / 10000;
+
+                document.getElementById("prob").value = p;
+                createGraph();
+            }
+
+            function integ(a, b){
+                var p = 0;
+                var strips = 1000000;
+                var h = (b - a)/strips;
+                for (var i = 0; i < strips; i++) {
+                        p = p + (h/2)*(phi(a + (i*h), 0, 1) + phi(a + ((i+1)*h), 0, 1));
+                    }
+                return p;
+            }
+
+            function showAnswers(){
+                var a1 = document.getElementById("answer1");
+                a1.innerText = "A: The pdf is translated to the left or right.";
+
+                var a2 = document.getElementById("answer2");
+                a2.innerText = "A: The pdf is stretched or compressed.";
+
+                var a3 = document.getElementById("answer3");
+                a3.innerText = "A: z = -2.154";
+
+                var a4 = document.getElementById("answer4");
+                a4.innerText = "A:  P(X ≤ 2) = 0.9772 and  P(X ≤ 1) = 0.8413 so P(1 ≤ X ≤ 2) = 0.9772 - 0.8413 = 0.136";
+            }
+
+            createGraph();
+            </script>
+        </main>
+     </body>
+ </html>
